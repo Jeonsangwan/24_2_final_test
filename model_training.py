@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.metrics import AUC, Precision, Recall
+from sklearn.metrics import f1_score
 from data_preprocessing import load_and_preprocess_images, split_data
 
 # 모델 설계
@@ -16,7 +18,11 @@ def build_model(input_shape):
         Dropout(0.5),
         Dense(1, activation='sigmoid')  # 이진 분류
     ])
-    model.compile(optimizer=Adam(), loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(
+        optimizer=Adam(),
+        loss='binary_crossentropy',
+        metrics=['accuracy', AUC(), Precision(), Recall()]
+    )
     return model
 
 # 데이터 준비
@@ -33,11 +39,21 @@ X_train, X_val, X_test, y_train, y_val, y_test = split_data(images, labels)
 model = build_model(X_train.shape[1:])
 
 # 모델 훈련
-model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_val, y_val))
+history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_val, y_val))
 
 # 성능 평가
-test_loss, test_acc = model.evaluate(X_test, y_test)
+test_loss, test_acc, test_auc, test_precision, test_recall = model.evaluate(X_test, y_test)
 print(f"Test accuracy: {test_acc}")
+print(f"Test AUC: {test_auc}")
+print(f"Test Precision: {test_precision}")
+print(f"Test Recall: {test_recall}")
+
+# F1 점수 계산
+y_pred = model.predict(X_test)
+y_pred = (y_pred > 0.5)  # 이진 분류
+
+f1 = f1_score(y_test, y_pred)
+print(f"Test F1 Score: {f1}")
 
 # 모델 저장
 model.save('helmet_detection_model.keras')
